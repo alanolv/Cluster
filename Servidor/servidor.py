@@ -2,6 +2,10 @@
 import socket
 import struct
 import os
+
+#global variables
+numSlaves = 0
+
 def receive_file_size(sck: socket.socket):
     # Esta función se asegura de que se reciban los bytes
     # que indican el tamaño del archivo que será enviado,
@@ -54,6 +58,50 @@ with socket.create_server(("localhost", 6190)) as server:
     print("Recibiendo archivo...")
     receive_file(conn, "dukibn.mp4")
     print("Archivo recibido.")
+
+
     send_file(conn,"dukibn.mp4")
     print("Archivo enviado al cliente")
-print("Conexión cerrada.")
+    print("Conexión cerrada.")
+
+
+
+#corta el video en clipas para los slaves
+def cut_video(Filename ):
+    #obtenemos el archivo de video
+
+    #ejecutamos la funcion para cortar el video
+
+    #la cantidad de clips depende de la cantidad de slaves
+
+    #arreglo para guardar los clips
+    clips = []
+    #
+     
+    #
+
+    return clips
+
+#juntar clips para hacer video procesado
+def merge_video(Clips):
+    #obtenemos todos los clips
+
+    #los juntamos de acuerdo a el orden de los mismos
+
+    #guardamos en una direccion
+    videoMerged = ""
+
+    return videoMerged
+
+def server_listen( ):
+    #escucha para ver que recibe 
+
+    #si recibe un usuario hace le isguiente
+
+    #si recibe un slave hace lo siuguiente
+
+    #si recibe un clip hace lo siguiente
+
+
+    return null
+

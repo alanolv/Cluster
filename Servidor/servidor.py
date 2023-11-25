@@ -1,6 +1,7 @@
 # server.py
 import socket
 import struct
+import os
 def receive_file_size(sck: socket.socket):
     # Esta función se asegura de que se reciban los bytes
     # que indican el tamaño del archivo que será enviado,
@@ -17,6 +18,7 @@ def receive_file_size(sck: socket.socket):
         received_bytes += len(chunk)
     filesize = struct.unpack(fmt, stream)[0]
     return filesize
+
 def receive_file(sck: socket.socket, filename):
     # Leer primero del socket la cantidad de 
     # bytes que se recibirán del archivo.
@@ -33,6 +35,18 @@ def receive_file(sck: socket.socket, filename):
             if chunk:
                 f.write(chunk)
                 received_bytes += len(chunk)
+
+def send_file(sck: socket.socket, filename):
+    # Obtener el tamaño del archivo a enviar.
+    filesize = os.path.getsize(filename)
+    # Informar primero al servidor la cantidad
+    # de bytes que serán enviados.
+    sck.sendall(struct.pack("<Q", filesize))
+    # Enviar el archivo en bloques de 1024 bytes.
+    with open(filename, "rb") as f:
+        while read_bytes := f.read(1024):
+            sck.sendall(read_bytes)
+
 with socket.create_server(("localhost", 6190)) as server:
     print("Esperando al cliente...")
     conn, address = server.accept()
@@ -40,4 +54,6 @@ with socket.create_server(("localhost", 6190)) as server:
     print("Recibiendo archivo...")
     receive_file(conn, "dukibn.mp4")
     print("Archivo recibido.")
+    send_file(conn,"dukibn.mp4")
+    print("Archivo enviado al cliente")
 print("Conexión cerrada.")

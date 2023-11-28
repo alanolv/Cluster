@@ -1,68 +1,89 @@
-# Importación de librerías
-import numpy as np
+import socket
 import cv2
-import time
- 
-# Capturamos el vídeo
-cap = cv2.VideoCapture(r'C:/Users/jquin/PersonalWorkSpace/SistemasDistribuidos/Proyecto3/Cluster/Esclavo/machapan.mp4')
+import struct
+import numpy as np
+import os
 
-fps = cap.get(cv2.CAP_PROP_FPS)
-frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-# Llamada al método
-fgbg = cv2.createBackgroundSubtractorKNN(history=500, dist2Threshold=400, detectShadows=False)
-output_video = cv2.VideoWriter('output_video.mp4', cv2.VideoWriter_fourcc(*'mp4v'), fps, (width,height))
-i=1
-while(1):
-	# Leemos el siguiente frame
-	i+=1
-	ret, frame = cap.read()
- 
-	# Si hemos llegado al final del vídeo salimos
-	if not ret:
-		break
- 
-	# Aplicamos el algoritmo
-	fgmask = fgbg.apply(frame)
-	img_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-	#ret, thresh = cv2.threshold(img_gray, 150, 255, cv2.THRESH_BINARY)
-	edges = cv2.Canny(img_gray,100,200)
+class VideoSlave:
+    def __init__(self, host='localhost', port=6201):
+        self.host = host
+        self.port = port
 
-	'''
-	# Copiamos el umbral para detectar los contornos
-	contornosimg = fgmask.copy()
-	# Buscamos contorno en la imagen
-	contornos, hierarchy = cv2.findContours(contornosimg,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
- 	
-	# Recorremos todos los contornos encontrados
-	for c in contornos:
-		# Eliminamos los contornos más pequeños
-		if cv2.contourArea(c) < 500:
-			continue
- 
-		# Obtenemos el bounds del contorno, el rectángulo mayor que engloba al contorno
-		(x, y, w, h) = cv2.boundingRect(c)
-		# Dibujamos el rectángulo del bounds
-		cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-	'''
-	# Mostramos las capturas
+    def start(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.bind((self.host, self.port))
+            sock.listen()
+            print(f"Slave listening on {self.host}:{self.port}")
 
-	#cv2.imshow('Camara',frame)
-	#cv2.imshow('Umbral',fgmask)
-	#cv2.imshow('gris',edges)
- 
-	# Sentencias para salir, pulsa 's' y sale
-	k = cv2.waitKey(30) & 0xff
-	if k == ord("s"):
-		break
-	elif k == ord("p"):
-		time.sleep(10)
- 
-# Liberamos la cámara y cerramos todas las ventanas
-print("no de cuadros: ",i)
-cap.release()
-output_video.release()
-cv2.destroyAllWindows()
-#cv2.destroyAllWindows()
+            while True:
+                conn, addr = sock.accept()
+                print(f"Connection from {addr}")
+                self.handle_connection(conn)
+
+    def handle_connection(self, conn):
+        # Recibir el clip de video
+        video_path = "received_clip.mp4"
+        self.receive_file(conn, video_path)
+
+        # Procesar el clip de video
+        processed_video_path = self.process_clip(video_path)
+
+        # Enviar el clip procesado de vuelta al servidor central
+        self.send_file(conn, processed_video_path)
+
+        conn.close()
+    
+    def receive_file(self, conn, file_path):
+        # Paso 1: Recibir el tamaño del archivo
+        file_size_data = conn.recv(8)
+        if not file_size_data:
+            raise ValueError("No se recibieron datos del tamaño del archivo")
+        file_size = struct.unpack('Q', file_size_data)[0]
+        with open(file_path, 'wb') as f:
+            remaining = file_size
+            while remaining:
+                chunk_size = 4096 if remaining >= 4096 else remaining
+                chunk = conn.recv(chunk_size)
+                if not chunk:
+                    break
+                f.write(chunk)
+                remaining -= len(chunk)
+            if remaining != 0:
+                raise IOError("No se recibieron todos los datos del archivo")
+
+	
+    def process_clip(self, video_path):
+        # Abrir el video original
+        video = cv2.VideoCapture(video_path)
+        processed_video_path = "processed_" + video_path
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        fps = video.get(cv2.CAP_PROP_FPS)
+        frame_width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        out = cv2.VideoWriter(processed_video_path, fourcc, fps, (frame_width, frame_height))
+
+        # Procesar cada frame para convertirlo a bordes
+        while True:
+            ret, frame = video.read()
+            if not ret:
+                break
+            edges = cv2.Canny(frame, 100, 200)  # Convertir a bordes
+            edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)  # Convertir a BGR para el video
+            out.write(edges_colored)
+
+        video.release()
+        out.release()
+        return processed_video_path
+
+    def send_file(self, conn, file_path):
+        filesize = os.path.getsize(file_path)
+        conn.sendall(struct.pack('Q', filesize))
+        
+        with open(file_path, 'rb') as f:
+            while read_bytes := f.read(4096):
+                conn.sendall(read_bytes)
+
+if __name__ == "__main__":
+    slave = VideoSlave()
+    slave.start()

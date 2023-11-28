@@ -12,8 +12,8 @@ width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 # Configura el escritor de video para la sustracción de fondo
-fourcc = cv2.VideoWriter_fourcc(*'XVID')
-out_bgsub = cv2.VideoWriter('sustraccion_fondo_output.avi', fourcc, 20.0, (width, height), isColor=False)
+fourcc = cv2.VideoWriter_fourcc(*'XVID')  # Puedes ajustar el códec según tus preferencias
+cap_salida = cv2.VideoWriter('sustraccion_fondo_output.avi', fourcc, 20.0, (width, height), isColor=False)
 
 i = 1 
 while(1):
@@ -29,7 +29,7 @@ while(1):
     fgmask = fgbg.apply(frame)
 
     # Escribir el frame de sustracción de fondo en el video de salida
-    out_bgsub.write(fgmask)
+    cap_salida.write(fgmask)
 
     # Mostramos las capturas
     cv2.imshow('Camara', frame)
@@ -42,8 +42,8 @@ while(1):
     elif k == ord("p"):
         time.sleep(10)
 
-# Liberamos la cámara, el escritor de video y cerramos todas las ventanas
+# Liberamos la cámara y cerramos todas las ventanas
 print("no de cuadros: ", i)
 cap.release()
-out_bgsub.release()
+cap_salida.release()
 cv2.destroyAllWindows()

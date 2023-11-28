@@ -3,8 +3,16 @@ import socket
 import struct
 import os
 
+import cv2
+import time
+
+import moviepy.editor as mp
+ 
+
 #global variables
 numSlaves = 0
+
+
 
 def receive_file_size(sck: socket.socket):
     # Esta función se asegura de que se reciban los bytes
@@ -27,17 +35,24 @@ def receive_file(sck: socket.socket, filename):
     # Leer primero del socket la cantidad de 
     # bytes que se recibirán del archivo.
     filesize = receive_file_size(sck)
+
     # Abrir un nuevo archivo en donde guardar
     # los datos recibidos.
     with open(filename, "wb") as f:
+
         received_bytes = 0
         # Recibir los datos del archivo en bloques de
         # 1024 bytes hasta llegar a la cantidad de
         # bytes total informada por el cliente.
+
         while received_bytes < filesize:
+
             chunk = sck.recv(1024)
+
             if chunk:
+
                 f.write(chunk)
+
                 received_bytes += len(chunk)
 
 def send_file(sck: socket.socket, filename):
@@ -50,6 +65,8 @@ def send_file(sck: socket.socket, filename):
     with open(filename, "rb") as f:
         while read_bytes := f.read(1024):
             sck.sendall(read_bytes)
+
+
 
 with socket.create_server(("localhost", 6190)) as server:
     print("Esperando al cliente...")
@@ -65,22 +82,61 @@ with socket.create_server(("localhost", 6190)) as server:
     print("Conexión cerrada.")
 
 
-
 #corta el video en clipas para los slaves
-def cut_video(Filename ):
-    #obtenemos el archivo de video
+def cliping(video_location, num_clips):
+    # Load the video clip
+    clip = mp.VideoFileClip(video_location)
+    cap = cv2.VideoCapture('dukibn.mp4')
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    
 
-    #ejecutamos la funcion para cortar el video
 
-    #la cantidad de clips depende de la cantidad de slaves
+    total_duration = clip.duration  # Duración total del video en segundos
+    print ("duracion",total_duration)
 
-    #arreglo para guardar los clips
-    clips = []
-    #
-     
-    #
+    duration_per_clip = total_duration / num_clips  # Duración por cada clip
+    print ("\nduration_per_clip ",duration_per_clip)
+    
+    clips = []  # Almacena los nombres de los clips generados
+    
+    # Dividir el video en el número de clips especificado
+    for i in range(num_clips):
 
+        start_time = i * duration_per_clip
+        print ("start_time ",start_time)
+
+        end_time = start_time + duration_per_clip
+        print ("end_time ",end_time)
+
+        print ("fps ",fps)
+        
+        # Nombre del clip basado en su número de orden
+        clip_name = f"clip_{i + 1}.mp4"
+        
+        # Llamar a la función cut_video() para cortar cada sección del video
+        cut_video(video_location, start_time, end_time, clip_name,fps)
+        
+        clips.append(clip_name)  # Agregar el nombre del clip a la lista de clips generados
+    
     return clips
+
+
+def cut_video(videoLocation, start_time, end_time, clipName, fps):
+
+    # Load the video clip
+    clip = mp.VideoFileClip(videoLocation)
+    
+    
+    # Create a cropped subclip  
+    cropped_clip = clip.subclip(start_time, end_time)
+
+    # Create VideoWriter object to save the modified frames
+    cropped_clip.write_videofile(clipName, codec='libx264', fps=cropped_clip.fps)
+    
+
+    return clipName
+
+
 
 #juntar clips para hacer video procesado
 def merge_video(Clips):
@@ -93,7 +149,7 @@ def merge_video(Clips):
 
     return videoMerged
 
-def server_listen( ):
+#def server_listen( ):
     #escucha para ver que recibe 
 
     #si recibe un usuario hace le isguiente
@@ -103,5 +159,8 @@ def server_listen( ):
     #si recibe un clip hace lo siguiente
 
 
-    return null
+
+
+
+
 

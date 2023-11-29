@@ -1,56 +1,52 @@
-import os
 import socket
 import struct
-def receive_file_size(sck: socket.socket):
-    # Esta función se asegura de que se reciban los bytes
-    # que indican el tamaño del archivo que será enviado,
-    # que es codificado por el cliente vía struct.pack(),
-    # función la cual genera una secuencia de bytes que
-    # representan el tamaño del archivo.
-    fmt = "<Q"
-    expected_bytes = struct.calcsize(fmt)
-    received_bytes = 0
-    stream = bytes()
-    while received_bytes < expected_bytes:
-        chunk = sck.recv(expected_bytes - received_bytes)
-        stream += chunk
-        received_bytes += len(chunk)
-    filesize = struct.unpack(fmt, stream)[0]
-    return filesize
+import os
 
-def receive_file(sck: socket.socket, filename):
-    # Leer primero del socket la cantidad de 
-    # bytes que se recibirán del archivo.
-    filesize = receive_file_size(sck)
-    # Abrir un nuevo archivo en donde guardar
-    # los datos recibidos.
-    with open(filename, "wb") as f:
-        received_bytes = 0
-        # Recibir los datos del archivo en bloques de
-        # 1024 bytes hasta llegar a la cantidad de
-        # bytes total informada por el cliente.
-        while received_bytes < filesize:
-            chunk = sck.recv(1024)
-            if chunk:
+class VideoClient:
+    def __init__(self, server_host, server_port, video_path):
+        self.server_host = server_host
+        self.server_port = server_port
+        self.video_path = video_path
+
+    def send_video(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.connect((self.server_host, self.server_port))
+
+            # Enviar el tamaño del archivo
+            filesize = os.path.getsize(self.video_path)
+            sock.sendall(struct.pack('Q', filesize))
+
+            # Enviar el archivo
+            with open(self.video_path, 'rb') as f:
+                while read_bytes := f.read(4096):
+                    sock.sendall(read_bytes)
+
+            print("Video enviado. Esperando el video procesado...")
+
+            # Recibir el video procesado
+            processed_video_path = 'processed_video.mp4'
+            self.receive_file(sock, processed_video_path)
+            print(f"Video procesado recibido y guardado como {processed_video_path}")
+
+    def receive_file(self, sock, file_path):
+        # Recibir el tamaño del archivo
+        file_size_data = sock.recv(8)
+        file_size = struct.unpack('Q', file_size_data)[0]
+
+        # Recibir y guardar el archivo
+        with open(file_path, 'wb') as f:
+            remaining = file_size
+            while remaining:
+                chunk_size = 4096 if remaining >= 4096 else remaining
+                chunk = sock.recv(chunk_size)
+                if not chunk: break
                 f.write(chunk)
-                received_bytes += len(chunk)
+                remaining -= len(chunk)
 
-def send_file(sck: socket.socket, filename):
-    # Obtener el tamaño del archivo a enviar.
-    filesize = os.path.getsize(filename)
-    # Informar primero al servidor la cantidad
-    # de bytes que serán enviados.
-    sck.sendall(struct.pack("<Q", filesize))
-    # Enviar el archivo en bloques de 1024 bytes.
-    with open(filename, "rb") as f:
-        while read_bytes := f.read(1024):
-            sck.sendall(read_bytes)
+if __name__ == "__main__":
+    server_host = 'localhost'  # Asegúrate de cambiar esto por la dirección real del servidor
+    server_port = 6190         # El puerto en el que está escuchando el servidor
+    video_path = 'Cliente\machapan.mp4'  # La ruta del video a enviar
 
-with socket.create_connection(("localhost", 6190)) as conn:
-    print("Conectado al servidor.")
-    print("Enviando archivo...")
-    send_file(conn, "duki.mp4")
-    print("Enviado.")
-    receive_file(conn, "dukibn.mp4")
-    print("Archivo recibido.")
-print("Conexión cerrada.")
+    client = VideoClient(server_host, server_port, video_path)
+    client.send_video()

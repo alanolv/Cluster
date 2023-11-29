@@ -29,15 +29,11 @@ class VideoServer:
         clips = self.process_video(video_path)
 
         # Enviar clips a los servidores esclavos y recibir los clips procesados
-        slaves_info = [("localhost", 6201), ("192.168.1.3", 6202), ("192.168.1.4", 6203)]
+        slaves_info = [("192.168.148.189", 6201), ("192.168.148.129", 6203), ("192.168.148.63", 6207)]
         processed_clips = []
         for i, (slave_ip, slave_port) in enumerate(slaves_info):
-            # Enviar cada clip a un esclavo diferente
-            self.connect_and_send_to_slave(slave_ip, slave_port, clips[i])
-
-            # Recibir el clip procesado de cada esclavo
             processed_clip_path = f"processed_clip_from_{slave_ip}.mp4"
-            self.receive_file(conn, processed_clip_path)
+            self.connect_and_send_to_slave(slave_ip, slave_port, clips[i], processed_clip_path)
             processed_clips.append(processed_clip_path)
 
         # Combinar los clips procesados en un solo video y enviarlo de vuelta al cliente
@@ -45,7 +41,7 @@ class VideoServer:
         self.combine_clips(processed_clips, output_video_path)
         self.send_file(conn, output_video_path)
 
-        conn.close()
+        
 
     def receive_file(self, conn, file_path):
         # Paso 1: Recibir el tamaño del archivo
@@ -97,11 +93,14 @@ class VideoServer:
         video.release()
         return clips
     
-    def connect_and_send_to_slave(self, slave_ip, slave_port, file_path):
+    def connect_and_send_to_slave(self, slave_ip, slave_port, clip_path, processed_clip_path):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.connect((slave_ip, slave_port))
-            self.send_file(sock, file_path)
-            print(f"Archivo {file_path} enviado al esclavo {slave_ip}:{slave_port}")
+            self.send_file(sock, clip_path)
+            print(f"Archivo {clip_path} enviado al esclavo {slave_ip}:{slave_port}")
+
+            # Recibir el clip procesado del esclavo
+            self.receive_file(sock, processed_clip_path)
             
     def combine_clips(self, clips, output_path):
         # Leer el primer video para obtener las propiedades

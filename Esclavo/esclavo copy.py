@@ -32,7 +32,6 @@ class VideoSlave:
         # Enviar el clip procesado de vuelta al servidor central
         self.send_file(conn, processed_video_path)
 
-        conn.close()
     
     def receive_file(self, conn, file_path):
         # Paso 1: Recibir el tamaño del archivo

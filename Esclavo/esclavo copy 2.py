@@ -6,10 +6,10 @@ import os
 
 
 class VideoSlave:
-    def __init__(self, host='localhost', port=6203):
+    def __init__(self, host='148.220.213.4', port=6203):
         self.host = host
         self.port = port
-
+ 
     def start(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.bind((self.host, self.port))
@@ -32,7 +32,6 @@ class VideoSlave:
         # Enviar el clip procesado de vuelta al servidor central
         self.send_file(conn, processed_video_path)
 
-        conn.close()
     
     def receive_file(self, conn, file_path):
         # Paso 1: Recibir el tamaño del archivo
